@@ -41,6 +41,7 @@ fn bench(c: &mut Criterion) {
         has_cape: false,
         custom_arm_rotation_z: Some(10.0),
         part_rotations: Default::default(),
+        part_offsets: Default::default(),
         shadow_y_pos: None,
         shadow_is_square: false,
         armor_slots: None,

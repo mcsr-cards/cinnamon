@@ -129,6 +129,7 @@ fn main() -> anyhow::Result<()> {
         has_deadmau5_ears: false,
         custom_arm_rotation_z: Some(0f32),
         part_rotations: Default::default(),
+        part_offsets: Default::default(),
         shadow_y_pos: None,
         shadow_is_square: false,
         armor_slots: None,

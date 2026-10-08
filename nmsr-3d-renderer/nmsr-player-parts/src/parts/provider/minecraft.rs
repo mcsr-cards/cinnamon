@@ -301,24 +301,26 @@ pub(crate) fn perform_pose_part_rotation<M: ArmorMaterial>(
     context: &PlayerPartProviderContext<M>,
 ) {
     let rotation = context.part_rotations.get(non_layer_body_part_type);
+    let offset = context.part_offsets.get(non_layer_body_part_type);
 
-    if rotation == Vec3::ZERO {
-        return;
+    if rotation != Vec3::ZERO {
+        let normal_part =
+            compute_base_part(non_layer_body_part_type, context.model.is_slim_arms());
+
+        let (joint, drop) = match non_layer_body_part_type {
+            Head => (Vec3::new(0.5, 0.0, 0.5), 0.0),
+            LeftArm | RightArm => (Vec3::new(0.5, 1.0, 0.5), 2.0),
+            _ => (Vec3::new(0.5, 1.0, 0.5), 0.0),
+        };
+        let anchor = normal_part.get_position() + normal_part.get_size() * joint - Vec3::Y * drop;
+
+        part.rotate(
+            rotation,
+            Some(PartAnchorInfo::new_rotation_anchor_position(anchor)),
+        );
     }
 
-    let normal_part = compute_base_part(non_layer_body_part_type, context.model.is_slim_arms());
-
-    let (joint, drop) = match non_layer_body_part_type {
-        Head => (Vec3::new(0.5, 0.0, 0.5), 0.0),
-        LeftArm | RightArm => (Vec3::new(0.5, 1.0, 0.5), 2.0),
-        _ => (Vec3::new(0.5, 1.0, 0.5), 0.0),
-    };
-    let anchor = normal_part.get_position() + normal_part.get_size() * joint - Vec3::Y * drop;
-
-    part.rotate(
-        rotation,
-        Some(PartAnchorInfo::new_rotation_anchor_position(anchor)),
-    );
+    part.translate(offset);
 }
 
 #[cfg(feature = "part_tracker")]
@@ -491,5 +493,40 @@ mod tests {
             posed[4].get_transformation(),
             unposed[4].get_transformation()
         );
+    }
+
+    #[test]
+    fn offset_moves_parts_and_layers_with_or_without_rotation() {
+        let offset = Vec3::new(1.0, 2.0, 3.0);
+        let context = |rot: Vec3| PlayerPartProviderContext::<()> {
+            has_layers: true,
+            part_rotations: PlayerPartRotations {
+                left_leg: rot,
+                right_leg: rot,
+                ..Default::default()
+            },
+            part_offsets: PlayerPartRotations {
+                left_leg: offset,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let parts = [LeftLeg, LeftLegLayer, RightLeg];
+
+        for rot in [Vec3::ZERO, Vec3::new(90.0, 0.0, 0.0)] {
+            let c = context(rot);
+            let moved = c.get_parts(&[PlayerPartsProvider::Minecraft], &parts);
+            let base = PlayerPartProviderContext::<()> {
+                part_offsets: Default::default(),
+                ..c
+            }
+            .get_parts(&[PlayerPartsProvider::Minecraft], &parts);
+
+            for i in [0, 1] {
+                let d = moved[i].get_transformation().translation - base[i].get_transformation().translation;
+                assert!(Vec3::from(d).abs_diff_eq(offset, 1e-3), "leg {i} rot {rot}: {d}");
+            }
+            assert_eq!(moved[2].get_transformation(), base[2].get_transformation());
+        }
     }
 }

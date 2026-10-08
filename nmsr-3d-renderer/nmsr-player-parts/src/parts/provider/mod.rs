@@ -45,6 +45,7 @@ where
     pub is_flipped_upside_down: bool,
     pub custom_arm_rotation_z: Option<f32>,
     pub part_rotations: PlayerPartRotations,
+    pub part_offsets: PlayerPartOffsets,
     pub shadow_y_pos: Option<f32>,
     pub shadow_is_square: bool,
     pub armor_slots: Option<PlayerArmorSlots<M>>,
@@ -63,6 +64,8 @@ pub struct PlayerPartRotations {
     pub left_leg: Vec3,
     pub right_leg: Vec3,
 }
+
+pub type PlayerPartOffsets = PlayerPartRotations;
 
 impl PlayerPartRotations {
     pub fn get(&self, body_part: PlayerBodyPartType) -> Vec3 {

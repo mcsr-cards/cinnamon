@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use enumset::EnumSet;
-use nmsr_rendering::{high_level::parts::provider::PlayerPartRotations, low_level::Vec3};
+use nmsr_rendering::{high_level::parts::provider::{PlayerPartOffsets, PlayerPartRotations}, low_level::Vec3};
 use serde::Deserialize;
 use serde_with::TryFromInto;
 use serde_with::{formats::CommaSeparator, serde_as, DisplayFromStr, StringWithSeparator};
@@ -126,6 +126,25 @@ pub struct RenderRequestQueryParams {
     #[serde(alias = "rleg")]
     pub right_leg: Option<Vec<f32>>,
 
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "headpos")]
+    pub head_pos: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "bodypos")]
+    pub body_pos: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "larmpos")]
+    pub left_arm_pos: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "rarmpos")]
+    pub right_arm_pos: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "llegpos")]
+    pub left_leg_pos: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "rlegpos")]
+    pub right_leg_pos: Option<Vec<f32>>,
+
     #[cfg(feature = "renderdoc")]
     pub capture: Option<String>,
 }
@@ -189,19 +208,38 @@ impl RenderRequestQueryParams {
     }
 
     pub fn get_part_rotations(&self) -> Option<PlayerPartRotations> {
-        let get = |rotation: &Option<Vec<f32>>| {
-            rotation
-                .as_deref()
-                .map_or(Vec3::ZERO, Vec3::from_slice)
-        };
+        Self::collect_part_vecs([
+            &self.head,
+            &self.body,
+            &self.left_arm,
+            &self.right_arm,
+            &self.left_leg,
+            &self.right_leg,
+        ])
+    }
+
+    pub fn get_part_offsets(&self) -> Option<PlayerPartOffsets> {
+        Self::collect_part_vecs([
+            &self.head_pos,
+            &self.body_pos,
+            &self.left_arm_pos,
+            &self.right_arm_pos,
+            &self.left_leg_pos,
+            &self.right_leg_pos,
+        ])
+    }
+
+    fn collect_part_vecs(parts: [&Option<Vec<f32>>; 6]) -> Option<PlayerPartRotations> {
+        let [head, body, left_arm, right_arm, left_leg, right_leg] =
+            parts.map(|v| v.as_deref().map_or(Vec3::ZERO, Vec3::from_slice));
 
         let rotations = PlayerPartRotations {
-            head: get(&self.head),
-            body: get(&self.body),
-            left_arm: get(&self.left_arm),
-            right_arm: get(&self.right_arm),
-            left_leg: get(&self.left_leg),
-            right_leg: get(&self.right_leg),
+            head,
+            body,
+            left_arm,
+            right_arm,
+            left_leg,
+            right_leg,
         };
 
         Some(rotations).filter(|r| *r != PlayerPartRotations::default())
@@ -275,6 +313,12 @@ impl RenderRequestQueryParams {
             ("right arm rotation (rarm parameter)", &self.right_arm),
             ("left leg rotation (lleg parameter)", &self.left_leg),
             ("right leg rotation (rleg parameter)", &self.right_leg),
+            ("head offset (headpos parameter)", &self.head_pos),
+            ("body offset (bodypos parameter)", &self.body_pos),
+            ("left arm offset (larmpos parameter)", &self.left_arm_pos),
+            ("right arm offset (rarmpos parameter)", &self.right_arm_pos),
+            ("left leg offset (llegpos parameter)", &self.left_leg_pos),
+            ("right leg offset (rlegpos parameter)", &self.right_leg_pos),
         ] {
             if let Some(rotation) = rotation {
                 if rotation.len() != 3 || rotation.iter().any(|v| !v.is_finite()) {
