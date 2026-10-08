@@ -4,6 +4,7 @@ use is_empty::IsEmpty;
 use nmsr_rendering::{
     high_level::{
         camera::Camera,
+        parts::provider::PlayerPartRotations,
         pipeline::scene::{Size, SunInformation},
     },
     low_level::{EulerRot, Quat, Vec3},
@@ -80,6 +81,8 @@ pub struct RenderRequestExtraSettings {
 
     pub time: Option<f32>,
     pub limb_swing: Option<f32>,
+
+    pub part_rotations: Option<PlayerPartRotations>,
 }
 
 impl RenderRequestExtraSettings {

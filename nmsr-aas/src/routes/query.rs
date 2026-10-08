@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use enumset::EnumSet;
+use nmsr_rendering::{high_level::parts::provider::PlayerPartRotations, low_level::Vec3};
 use serde::Deserialize;
 use serde_with::TryFromInto;
 use serde_with::{formats::CommaSeparator, serde_as, DisplayFromStr, StringWithSeparator};
@@ -108,6 +109,23 @@ pub struct RenderRequestQueryParams {
     #[serde(alias = "swing")]
     pub limb_swing: Option<f32>,
 
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    pub head: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    pub body: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "larm")]
+    pub left_arm: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "rarm")]
+    pub right_arm: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "lleg")]
+    pub left_leg: Option<Vec<f32>>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, f32>>")]
+    #[serde(alias = "rleg")]
+    pub right_leg: Option<Vec<f32>>,
+
     #[cfg(feature = "renderdoc")]
     pub capture: Option<String>,
 }
@@ -170,6 +188,25 @@ impl RenderRequestQueryParams {
         alex.or(steve).or(model)
     }
 
+    pub fn get_part_rotations(&self) -> Option<PlayerPartRotations> {
+        let get = |rotation: &Option<Vec<f32>>| {
+            rotation
+                .as_deref()
+                .map_or(Vec3::ZERO, Vec3::from_slice)
+        };
+
+        let rotations = PlayerPartRotations {
+            head: get(&self.head),
+            body: get(&self.body),
+            left_arm: get(&self.left_arm),
+            right_arm: get(&self.right_arm),
+            left_leg: get(&self.left_leg),
+            right_leg: get(&self.right_leg),
+        };
+
+        Some(rotations).filter(|r| *r != PlayerPartRotations::default())
+    }
+
     pub fn validate(&mut self, mode: RenderRequestMode) -> Result<()> {
         fn clamp(value: &mut Option<f32>, min: f32, max: f32) {
             if let Some(value) = value {
@@ -230,6 +267,25 @@ impl RenderRequestQueryParams {
         RenderRequestMode::validate_unit("xpos", self.x_pos, -50.0, 50.0)?;
         RenderRequestMode::validate_unit("ypos", self.y_pos, -50.0, 50.0)?;
         RenderRequestMode::validate_unit("zpos", self.z_pos, -50.0, 50.0)?;
+
+        for (name, rotation) in [
+            ("head rotation (head parameter)", &self.head),
+            ("body rotation (body parameter)", &self.body),
+            ("left arm rotation (larm parameter)", &self.left_arm),
+            ("right arm rotation (rarm parameter)", &self.right_arm),
+            ("left leg rotation (lleg parameter)", &self.left_leg),
+            ("right leg rotation (rleg parameter)", &self.right_leg),
+        ] {
+            if let Some(rotation) = rotation {
+                if rotation.len() != 3 || rotation.iter().any(|v| !v.is_finite()) {
+                    return Err(RenderRequestError::InvalidRenderSettingError(
+                        name,
+                        "3 valid numbers separated by commas".to_string(),
+                    )
+                    .into());
+                }
+            }
+        }
 
         Ok(())
     }

@@ -46,6 +46,7 @@ fn main() {
         has_deadmau5_ears: false,
         is_flipped_upside_down: false,
         custom_arm_rotation_z: Some(10.0),
+        part_rotations: Default::default(),
         shadow_y_pos: None,
         shadow_is_square: false,
         armor_slots: None,

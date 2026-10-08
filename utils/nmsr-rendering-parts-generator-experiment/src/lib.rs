@@ -411,6 +411,7 @@ async fn process_group_logic(
         has_deadmau5_ears: false,
         is_flipped_upside_down: false,
         custom_arm_rotation_z: Some(arm_rotation),
+        part_rotations: Default::default(),
         shadow_y_pos,
         shadow_is_square: false,
         armor_slots: None,

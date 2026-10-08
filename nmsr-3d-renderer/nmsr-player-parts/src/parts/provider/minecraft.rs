@@ -295,6 +295,32 @@ pub(crate) fn perform_arm_part_rotation<M: ArmorMaterial>(
     }
 }
 
+pub(crate) fn perform_pose_part_rotation<M: ArmorMaterial>(
+    non_layer_body_part_type: PlayerBodyPartType,
+    part: &mut Part,
+    context: &PlayerPartProviderContext<M>,
+) {
+    let rotation = context.part_rotations.get(non_layer_body_part_type);
+
+    if rotation == Vec3::ZERO {
+        return;
+    }
+
+    let normal_part = compute_base_part(non_layer_body_part_type, context.model.is_slim_arms());
+
+    let (joint, drop) = match non_layer_body_part_type {
+        Head => (Vec3::new(0.5, 0.0, 0.5), 0.0),
+        LeftArm | RightArm => (Vec3::new(0.5, 1.0, 0.5), 2.0),
+        _ => (Vec3::new(0.5, 1.0, 0.5), 0.0),
+    };
+    let anchor = normal_part.get_position() + normal_part.get_size() * joint - Vec3::Y * drop;
+
+    part.rotate(
+        rotation,
+        Some(PartAnchorInfo::new_rotation_anchor_position(anchor)),
+    );
+}
+
 #[cfg(feature = "part_tracker")]
 pub(crate) fn misc_part_set_origin(non_layer_part: PlayerBodyPartType, part: &mut Part) {
     if let Some(rot) = part.part_tracking_data().last_rotation_origin() {
@@ -403,5 +429,67 @@ fn get_layer_expand_offset(body_part: PlayerBodyPartType) -> f32 {
     match body_part {
         Head => 0.5,
         _ => 0.25,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::Vec3;
+
+    use crate::parts::provider::{
+        PlayerPartProviderContext, PlayerPartRotations, PlayerPartsProvider,
+    };
+    use crate::types::PlayerBodyPartType::*;
+
+    #[test]
+    fn pose_rotates_parts_and_layers_around_their_joints() {
+        let posed = PlayerPartProviderContext::<()> {
+            has_layers: true,
+            has_hat_layer: true,
+            part_rotations: PlayerPartRotations {
+                head: Vec3::new(0.0, 90.0, 0.0),
+                left_leg: Vec3::new(90.0, 0.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let unposed = PlayerPartProviderContext::<()> {
+            part_rotations: Default::default(),
+            ..posed
+        };
+
+        let body_parts = [Head, HeadLayer, LeftLeg, LeftLegLayer, Body];
+        let posed = posed.get_parts(&[PlayerPartsProvider::Minecraft], &body_parts);
+        let unposed = unposed.get_parts(&[PlayerPartsProvider::Minecraft], &body_parts);
+        assert_eq!(posed.len(), 5);
+
+        let point = |i: usize, local: [f32; 3]| {
+            let parts = [&posed[i], &unposed[i]];
+            parts.map(|p| p.get_transformation().transform_point3(local.into()))
+        };
+        let close = |a: Vec3, b: Vec3| a.abs_diff_eq(b, 1e-3);
+
+        for i in [0, 1] {
+            let [neck, unposed_neck] = point(i, [0.5, 0.0, 0.5]);
+            let [face, unposed_face] = point(i, [0.5, 0.5, 0.0]);
+            assert!(
+                close(neck, unposed_neck),
+                "head {i} moved off the neck: {neck}"
+            );
+            assert!(!close(face, unposed_face), "head {i} did not turn");
+        }
+
+        let [hip, _] = point(2, [0.5, 1.0, 0.5]);
+        assert!(close(hip, Vec3::new(-2.0, 12.0, 0.0)), "{hip}");
+
+        for i in [2, 3] {
+            let [foot, _] = point(i, [0.5, 0.0, 0.5]);
+            assert!((foot.y - 12.0).abs() < 1e-3, "leg {i} not raised: {foot}");
+        }
+
+        assert_eq!(
+            posed[4].get_transformation(),
+            unposed[4].get_transformation()
+        );
     }
 }
