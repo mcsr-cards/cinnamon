@@ -59,6 +59,9 @@ pub struct ModelCacheConfiguration {
     #[serde(with = "humantime_serde")]
     pub texture_cache_duration: Duration,
 
+    #[serde(with = "humantime_serde")]
+    pub texture_hash_max_age: Duration,
+
     /// Cache biases for specific entries.
     /// A cache bias is a duration of time to keep a specific entry in the cache.
     /// This is useful for entries that are requested often, such as the models in the home page.
@@ -73,6 +76,7 @@ impl Default for ModelCacheConfiguration {
             username_cache_duration: Duration::from_secs(60 * 60),
             resolve_cache_duration: Duration::from_secs(60 * 60 * 15),
             texture_cache_duration: Duration::from_secs(60 * 60 * 24 * 2),
+            texture_hash_max_age: Duration::from_secs(60 * 60 * 24 * 365),
             cache_biases: HashMap::new(),
         }
     }

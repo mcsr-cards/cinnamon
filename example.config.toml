@@ -33,6 +33,11 @@ resolve_cache_duration = "15m"
 # even if the player's UUID wasn't requested for some time.
 texture_cache_duration = "48h"
 
+# The Cache-Control max-age for renders requested by texture hash.
+# A texture hash always points at the same texture, so these can be cached for much longer than uuid renders.
+# Durations of a year or more are capped at a year and marked immutable.
+texture_hash_max_age = "365d"
+
 # Cache biases for specific entries.
 # A cache bias is a duration of time to keep a specific entry in the cache.
 # This is useful for entries that are requested often, such as the models in the home page.

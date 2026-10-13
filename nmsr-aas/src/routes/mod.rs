@@ -401,17 +401,19 @@ impl<'a> NMSRState<'a> {
             return "public, no-store".into();
         }
 
-        if let RenderRequestEntry::TextureHash(_) = request.entry {
-            return "public, max-age=31536000, immutable".into();
-        }
-
         // Get the cache duration for this entry.
-        let entry_duration = self.cache_config.get_cache_duration(&request.entry);
+        let entry_duration = match request.entry {
+            RenderRequestEntry::TextureHash(_) => self.cache_config.get_cache_duration_with_default(
+                &request.entry,
+                &self.cache_config.texture_hash_max_age,
+            ),
+            _ => self.cache_config.get_cache_duration(&request.entry),
+        };
 
         // Limit our max-age duration to 1 year if we have set this entry to be cached forever.
         let max_age_duration = entry_duration.min(&Self::ONE_YEAR_DURATION);
 
-        let immutable = if entry_duration == &Duration::MAX {
+        let immutable = if entry_duration >= &Self::ONE_YEAR_DURATION {
             ", immutable"
         } else {
             ""
